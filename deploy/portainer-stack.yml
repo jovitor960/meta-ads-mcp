@@ -1,0 +1,63 @@
+version: "3.9"
+
+services:
+  meta_ads_mcp:
+    image: joaoengrena/meta-ads-mcp:0.1.0
+    environment:
+      MCP_TRANSPORT: streamable-http
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "8000"
+      META_APP_ID: "${META_APP_ID}"
+      META_BUSINESS_ID: "${META_BUSINESS_ID}"
+      META_APP_SECRET_FILE: /run/secrets/meta_app_secret_v1
+      META_ADS_ACCESS_TOKEN_FILE: /run/secrets/meta_ads_access_token_v1
+    secrets:
+      - meta_app_secret_v1
+      - meta_ads_access_token_v1
+    networks:
+      - meta_mcp_private
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import socket; socket.create_connection(('127.0.0.1', 8000), 2).close()"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.role == manager
+      resources:
+        reservations:
+          cpus: "0.10"
+          memory: 128M
+        limits:
+          cpus: "0.50"
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        window: 60s
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+    logging:
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "3"
+
+networks:
+  meta_mcp_private:
+    external: true
+
+secrets:
+  meta_app_secret_v1:
+    external: true
+  meta_ads_access_token_v1:
+    external: true
